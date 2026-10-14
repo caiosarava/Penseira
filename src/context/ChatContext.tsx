@@ -275,7 +275,32 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err: any) {
       console.error('Error sending message:', err);
-      const errorMessage = err?.message || 'Falha na comunicação com a inteligência artificial.';
+      let errorMessage = err?.message || 'Falha na comunicação com a inteligência artificial.';
+
+      // Parse nested JSON strings if present in the error message
+      try {
+        let current: any = errorMessage;
+        for (let i = 0; i < 3; i++) {
+          if (typeof current === 'string' && (current.trim().startsWith('{') || current.trim().startsWith('['))) {
+            const parsed = JSON.parse(current);
+            if (parsed?.error) {
+              current = typeof parsed.error === 'string' ? parsed.error : parsed.error.message || current;
+            } else if (parsed?.message) {
+              current = parsed.message;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+        if (typeof current === 'string' && current.trim()) {
+          errorMessage = current;
+        }
+      } catch {
+        // Fallback to raw string
+      }
+
       setError(errorMessage);
 
       // Remove assistant placeholder on failure if empty
