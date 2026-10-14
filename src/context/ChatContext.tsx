@@ -8,9 +8,11 @@ interface ChatContextType {
   activeSession: ChatSession | null;
   activeSessionId: string | null;
   userName: string;
+  customApiKey: string;
   isGenerating: boolean;
   error: string | null;
   setUserName: (name: string) => void;
+  setCustomApiKey: (key: string) => void;
   createNewSession: (mentalModelId?: string) => string;
   switchSession: (id: string) => void;
   deleteSession: (id: string) => void;
@@ -23,6 +25,7 @@ const STORAGE_KEYS = {
   SESSIONS: 'penseira_sessions_v1',
   ACTIVE_ID: 'penseira_active_id_v1',
   USER_PROFILE: 'penseira_user_profile_v1',
+  CUSTOM_API_KEY: 'penseira_custom_api_key_v1',
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -31,6 +34,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [userName, setUserNameState] = useState<string>('');
+  const [customApiKey, setCustomApiKeyState] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
@@ -44,6 +48,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (parsedProfile.name) {
           setUserNameState(parsedProfile.name);
         }
+      }
+
+      const storedCustomKey = localStorage.getItem(STORAGE_KEYS.CUSTOM_API_KEY);
+      if (storedCustomKey) {
+        setCustomApiKeyState(storedCustomKey);
       }
 
       const storedSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
@@ -97,6 +106,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
     } catch (e) {
       console.error('Failed to save user profile:', e);
+    }
+  };
+
+  const setCustomApiKey = (key: string) => {
+    const trimmed = key.trim();
+    setCustomApiKeyState(trimmed);
+    try {
+      if (trimmed) {
+        localStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, trimmed);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.CUSTOM_API_KEY);
+      }
+    } catch (e) {
+      console.error('Failed to save custom API key:', e);
     }
   };
 
@@ -223,15 +246,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     try {
-      // Get last few topics from past sessions for context summary
       const lastTopics = sessions
         .filter((s) => s.id !== currentSessionId && s.messages.length > 0)
         .slice(0, 3)
         .map((s) => s.title);
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (customApiKey) {
+        headers['x-user-api-key'] = customApiKey;
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           messages: updatedMessagesWithUser.map((m) => ({
             role: m.role,
@@ -245,7 +275,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Erro do servidor (${response.status})`);
+        let rawErr = errorData.error || `Erro de servidor (${response.status})`;
+
+        // Clean raw JSON string if present
+        if (typeof rawErr === 'string' && rawErr.includes('"message"')) {
+          try {
+            const parsed = JSON.parse(rawErr);
+            if (parsed?.error?.message) rawErr = parsed.error.message;
+          } catch {
+            // ignore
+          }
+        }
+
+        throw new Error(rawErr);
       }
 
       if (!response.body) {
@@ -278,7 +320,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const errorMessage = err?.message || 'Falha na comunicação com a inteligência artificial.';
       setError(errorMessage);
 
-      // Remove assistant placeholder on failure if empty
+      // Remove empty assistant placeholder on error
       setSessions((prev) =>
         prev.map((s) => {
           if (s.id !== currentSessionId) return s;
@@ -298,9 +340,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeSession,
         activeSessionId,
         userName,
+        customApiKey,
         isGenerating,
         error,
         setUserName,
+        setCustomApiKey,
         createNewSession,
         switchSession,
         deleteSession,

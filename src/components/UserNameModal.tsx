@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Check } from 'lucide-react';
+import { X, User, Key, Check } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface UserNameModalProps {
@@ -10,18 +10,21 @@ interface UserNameModalProps {
 }
 
 export const UserNameModal: React.FC<UserNameModalProps> = ({ isOpen, onClose }) => {
-  const { userName, setUserName } = useChat();
+  const { userName, setUserName, customApiKey, setCustomApiKey } = useChat();
   const [nameInput, setNameInput] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
 
   useEffect(() => {
     setNameInput(userName || '');
-  }, [userName, isOpen]);
+    setApiKeyInput(customApiKey || '');
+  }, [userName, customApiKey, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setUserName(nameInput.trim());
+    setCustomApiKey(apiKeyInput.trim());
     onClose();
   };
 
@@ -34,7 +37,7 @@ export const UserNameModal: React.FC<UserNameModalProps> = ({ isOpen, onClose })
               <User className="w-5 h-5" />
             </div>
             <h2 className="font-bold text-base text-zinc-900 dark:text-zinc-100">
-              Como podemos te chamar?
+              Configurações do Perfil
             </h2>
           </div>
           <button
@@ -45,21 +48,41 @@ export const UserNameModal: React.FC<UserNameModalProps> = ({ isOpen, onClose })
           </button>
         </div>
 
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-          O Penseira usa seu nome para personalizar o diálogo e adaptar as reflexões.
-        </p>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Ex: Ana, Carlos, Rafael..."
-            className="w-full px-4 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            autoFocus
-          />
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+              Seu Nome:
+            </label>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Ex: Ana, Carlos, Rafael..."
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              autoFocus
+            />
+          </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Key className="w-3.5 h-3.5" />
+                <span>Chave GEMINI_API_KEY do Google AI Studio (Opcional):</span>
+              </span>
+            </label>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="Ex: AIzaSy..."
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 font-mono"
+            />
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+              Opcional se você já adicionou <code className="font-mono">GEMINI_API_KEY</code> nas variáveis de ambiente do Vercel.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
             <button
               type="button"
               onClick={onClose}
@@ -72,7 +95,7 @@ export const UserNameModal: React.FC<UserNameModalProps> = ({ isOpen, onClose })
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 rounded-lg transition"
             >
               <Check className="w-4 h-4" />
-              <span>Salvar Nome</span>
+              <span>Salvar Configurações</span>
             </button>
           </div>
         </form>
