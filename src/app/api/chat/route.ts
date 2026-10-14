@@ -53,7 +53,7 @@ REGRAS DE CONVERSAÇÃO:
       parts: [{ text: m.content }],
     }));
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
     const responseStream = await ai.models.generateContentStream({
       model: modelName,
