@@ -53,7 +53,7 @@ REGRAS DE CONVERSAÇÃO:
       parts: [{ text: m.content }],
     }));
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
     const responseStream = await ai.models.generateContentStream({
       model: modelName,
@@ -89,8 +89,35 @@ REGRAS DE CONVERSAÇÃO:
     });
   } catch (error: any) {
     console.error('API /api/chat error:', error);
+
+    let errorMessage = error?.message || 'Erro interno ao comunicar com o modelo de IA.';
+
+    // Parse nested JSON error message if returned from Google Gen AI API
+    try {
+      let current: any = errorMessage;
+      for (let i = 0; i < 3; i++) {
+        if (typeof current === 'string' && (current.trim().startsWith('{') || current.trim().startsWith('['))) {
+          const parsed = JSON.parse(current);
+          if (parsed?.error) {
+            current = typeof parsed.error === 'string' ? parsed.error : parsed.error.message || current;
+          } else if (parsed?.message) {
+            current = parsed.message;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      if (typeof current === 'string' && current.trim()) {
+        errorMessage = current;
+      }
+    } catch {
+      // Keep raw errorMessage if parsing fails
+    }
+
     return NextResponse.json(
-      { error: error?.message || 'Erro interno ao comunicar com o modelo de IA.' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
